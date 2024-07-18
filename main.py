@@ -45,6 +45,7 @@ selected_tab = option_menu(
     orientation="horizontal",
 )
 
+
 # Stock selection
 stocks = (
     "AAPL", "GOOG", "MSFT", "GME", "AMC", "TSLA", "AMZN", "NFLX", "NVDA", "AMD", "PYPL",
@@ -95,6 +96,18 @@ def plot_data(data):
     fig.update_layout(title_text="Stock Prices Over Time", xaxis_rangeslider_visible=True)
     st.plotly_chart(fig, use_container_width=True)
 
+def plot_volume(data):
+    """
+    Plot historical stock volume data.
+
+    Parameters:
+    - data (pd.DataFrame): DataFrame containing historical stock volume data.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data['Date'], y=data['Volume'], name="stock_volume"))
+    fig.update_layout(title_text="Stock Volume Over Time", xaxis_rangeslider_visible=True)
+    st.plotly_chart(fig, use_container_width=True)
+
 def plot_multiple_data(data, stock_names):
     """
     Plot forecasted stock prices for multiple stocks.
@@ -108,19 +121,6 @@ def plot_multiple_data(data, stock_names):
         fig.add_trace(go.Scatter(x=stock_data['ds'], y=stock_data['yhat'], name=f"yhat - {stock_names[i]}"))
     fig.update_layout(title_text="Stock Prices Over Time", xaxis_rangeslider_visible=True)
     st.plotly_chart(fig, use_container_width=True)
-
-def plot_volume(data):
-    """
-    Plot historical stock volume data.
-
-    Parameters:
-    - data (pd.DataFrame): DataFrame containing historical stock volume data.
-    """
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['Date'], y=data['Volume'], name="stock_volume"))
-    fig.update_layout(title_text="Stock Volume Over Time", xaxis_rangeslider_visible=True)
-    st.plotly_chart(fig, use_container_width=True)
-
 # Display a loading spinner while loading data
 with st.spinner("Loading data..."):
     data = load_data(selected_stock, start_date, end_date)
@@ -221,9 +221,10 @@ if selected_tab == "Dataframes":
 if selected_tab == "Plots":
     # Raw data plot
     plot_data(data)
-
-    # Data Volume plot
+    # Data Volume plot (line chart)
     plot_volume(data)
+
+    
 
 # Statistics Tab
 if selected_tab == "Statistics":
@@ -269,67 +270,96 @@ if selected_tab == "Forecasting":
     st.write("This section breaks down the forecast components, including trends and seasonality, for {} from {} to {}.".format(selected_stock, end_date, end_date + pd.Timedelta(days=period)))
     components = model.plot_components(forecast)
     st.write(components)
+    
+def get_current_trend(stock):
+    # Example function to fetch current trend (replace with actual implementation)
+    # You can fetch data using APIs or calculate trends based on your specific logic
+    # For demonstration, this function returns a simple trend based on historical data
+    data = load_data(stock, start_date, end_date)  # Load historical data
+    if data is not None:
+        # Calculate trend or use a real-time indicator
+        trend_data = data[['Date', 'Close']]  # Adjust based on your data structure
+        return trend_data
+    else:
+        return None
 
 # Comparison Tab
 if selected_tab == "Comparison":
     if selected_stocks:
-        # Forecast multiple stocks
-        stocks_data = []
+        # Forecast and current data for selected stocks
         forcasted_data = []
+        current_trend_data = []
+
         for stock in selected_stocks:
-            stocks_data.append(load_data(stock, start_date, end_date))
-
-        st.markdown("<h2><span style='color: orange;'>{}</span> Forecast Comparison Plot</h2>".format(', '.join(selected_stocks)), unsafe_allow_html=True)
-        st.write("This section visualizes the forecasted stock price for {} using a time series plot from {} to {}.".format(', '.join(selected_stocks), end_date, end_date + pd.Timedelta(days=period)))
-
-        for i, data in enumerate(stocks_data):
+            # Load historical data
+            data = load_data(stock, start_date, end_date)
+            
             if data is not None:
+                # Prepare data for Prophet
                 df_train = data[["Date", "Close"]]
                 df_train = df_train.rename(columns={"Date": "ds", "Close": "y"})
+                
+                # Fit Prophet model
                 model = Prophet()
                 model.fit(df_train)
+                
+                # Make future dataframe for forecasting
                 future = model.make_future_dataframe(periods=period)
                 forecast = model.predict(future)
+                
+                # Filter forecast based on end_date
                 forecast = forecast[forecast['ds'] >= end_date_datetime]
-                st.markdown("<h3><span style='color: orange;'>{}</span> Forecast DataFrame</h3>".format(selected_stocks[i]), unsafe_allow_html=True)
-
-                # Copy forecast dataframe
-                new_forecast = forecast.copy()
-
-                # Drop unwanted columns
-                new_forecast = new_forecast.drop(columns=[
-                    'additive_terms', 
-                    'additive_terms_lower', 
-                    'additive_terms_upper', 
-                    'weekly', 
-                    'weekly_lower', 
-                    'weekly_upper', 
-                    'yearly', 
-                    'yearly_lower', 
-                    'yearly_upper', 
-                    'multiplicative_terms', 
-                    'multiplicative_terms_lower', 
-                    'multiplicative_terms_upper'
-                ])
-
-                # Rename columns
-                new_forecast = new_forecast.rename(columns={
-                    "ds": "Date", 
-                    "yhat": "Close", 
-                    "yhat_lower": "Close Lower",
-                    "yhat_upper": "Close Upper",
-                    "trend": "Trend", 
-                    "trend_lower": "Trend Lower", 
-                    "trend_upper": "Trend Upper"
-                })
-
-                st.dataframe(new_forecast, use_container_width=True)
-
+                
+                # Store forecast data
                 forcasted_data.append(forecast)
-
+                
+                # Get current trend data
+                current_trend = get_current_trend(stock)
+                if current_trend is not None:
+                    current_trend_data.append(current_trend)
+                    
+                    # Display forecast dataframe
+                    st.markdown("<h3><span style='color: orange;'>{}</span> Forecast DataFrame</h3>".format(stock), unsafe_allow_html=True)
+                    new_forecast = forecast.copy()
+                    new_forecast = new_forecast.drop(columns=[
+                        'additive_terms', 
+                        'additive_terms_lower', 
+                        'additive_terms_upper', 
+                        'weekly', 
+                        'weekly_lower', 
+                        'weekly_upper', 
+                        'yearly', 
+                        'yearly_lower', 
+                        'yearly_upper', 
+                        'multiplicative_terms', 
+                        'multiplicative_terms_lower', 
+                        'multiplicative_terms_upper'
+                    ])
+                    new_forecast = new_forecast.rename(columns={
+                        "ds": "Date", 
+                        "yhat": "Close", 
+                        "yhat_lower": "Close Lower",
+                        "yhat_upper": "Close Upper",
+                        "trend": "Trend", 
+                        "trend_lower": "Trend Lower", 
+                        "trend_upper": "Trend Upper"
+                    })
+                    st.dataframe(new_forecast, use_container_width=True)
+                    
+                    # Display current trend chart
+                    st.markdown("<h3><span style='color: orange;'>{}</span> Current Stock Trend</h3>".format(stock), unsafe_allow_html=True)
+                    st.line_chart(current_trend.set_index('Date')['Close'])
+                    
+        # Display combined current trend chart
+        if current_trend_data:
+            combined_current_trend = pd.concat([trend.set_index('Date')['Close'] for trend in current_trend_data], axis=1)
+            combined_current_trend.columns = selected_stocks
+            
+            st.markdown("<h3>Combined Current Stock Trends</h3>", unsafe_allow_html=True)
+            st.line_chart(combined_current_trend)
+        # Plot multiple forecasted data
         plot_multiple_data(forcasted_data, selected_stocks)
+
+        
     else:
         st.warning("Please select at least one stock if you want to compare them.")
-
-# Display balloons at the end
-# st.balloons()v
