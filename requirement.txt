@@ -1,0 +1,6 @@
+streamlit
+scikit-learn
+prophet
+yfinance
+plotly
+wikipedia-api
