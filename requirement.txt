@@ -1,5 +1,7 @@
 streamlit==0.89.0
 scikit-learn==1.0.2
+matplotlib
+streamlit-option-menu
 prophet==1.0.1
 yfinance==0.1.63
 plotly==5.3.1
