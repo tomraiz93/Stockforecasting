@@ -1,7 +1,7 @@
 from time import sleep
 import uuid
 import pandas as pd
-from sklearn.metrics import mean_absolute_error
+#from sklearn.metrics import mean_absolute_error
 import streamlit as st
 from streamlit_option_menu import option_menu
 from datetime import date
@@ -242,7 +242,7 @@ if selected_tab == "Statistics":
         "Mean Volume": data['Volume'].mean(),
         "Mean High": data['High'].mean(),
         "Mean Low": data['Low'].mean(),
-        "MAE": mean_absolute_error(data['Open'], data['Close'])
+       # "MAE": mean_absolute_error(data['Open'], data['Close'])
     }
 
     st.write(statistics)
